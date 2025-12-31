@@ -1,6 +1,7 @@
 """Core framework components."""
 
 from ai_automation_framework.core.config import Config, get_config
+from ai_automation_framework.core.settings import Settings, get_settings
 from ai_automation_framework.core.logger import get_logger
 from ai_automation_framework.core.base import BaseComponent, Message, Response
 from ai_automation_framework.core.usage_tracker import UsageTracker, get_usage_tracker
@@ -124,10 +125,29 @@ from ai_automation_framework.core.tool_registry import (
     get_tool_registry,
     register_tool,
 )
+from ai_automation_framework.core.tool_interface import (
+    ToolInterface,
+    ToolResult,
+)
+from ai_automation_framework.core.security import (
+    SecureConfig,
+    SecureHTTPClient,
+    SecureConfigError,
+    APIKeyValidationError,
+    require_api_key,
+    sanitize_error_message,
+)
+from ai_automation_framework.core.result import (
+    Result,
+    ResultStatus,
+    PaginatedResult,
+)
 
 __all__ = [
     "Config",
     "get_config",
+    "Settings",
+    "get_settings",
     "get_logger",
     "BaseComponent",
     "Message",
@@ -239,4 +259,18 @@ __all__ = [
     "ToolRegistry",
     "get_tool_registry",
     "register_tool",
+    # Tool Interface
+    "ToolInterface",
+    "ToolResult",
+    # Security
+    "SecureConfig",
+    "SecureHTTPClient",
+    "SecureConfigError",
+    "APIKeyValidationError",
+    "require_api_key",
+    "sanitize_error_message",
+    # Result Types
+    "Result",
+    "ResultStatus",
+    "PaginatedResult",
 ]

@@ -43,13 +43,18 @@ class N8NEnhanced:
         self.api_key = api_key or os.getenv("N8N_API_KEY")
         self.timeout = timeout
 
-        self.headers = {
+        # Use session for connection pooling
+        self.session = requests.Session()
+        self.session.headers.update({
             'Content-Type': 'application/json',
             'Accept': 'application/json'
-        }
+        })
 
         if self.api_key:
-            self.headers['X-N8N-API-KEY'] = self.api_key
+            self.session.headers['X-N8N-API-KEY'] = self.api_key
+
+        # Keep headers for backward compatibility
+        self.headers = dict(self.session.headers)
 
     def _request(
         self,
@@ -73,10 +78,9 @@ class N8NEnhanced:
         url = f"{self.base_url}{endpoint}"
 
         try:
-            response = requests.request(
+            response = self.session.request(
                 method=method,
                 url=url,
-                headers=self.headers,
                 json=data,
                 params=params,
                 timeout=self.timeout
@@ -117,7 +121,7 @@ class N8NEnhanced:
         webhook_url = f"{self.base_url}/webhook/{webhook_id}"
 
         try:
-            response = requests.request(
+            response = self.session.request(
                 method=method.upper(),
                 url=webhook_url,
                 json=data,
@@ -145,7 +149,7 @@ class N8NEnhanced:
         webhook_url = f"{self.base_url}/webhook-test/{webhook_id}"
 
         try:
-            response = requests.post(
+            response = self.session.post(
                 webhook_url,
                 json=data,
                 timeout=self.timeout

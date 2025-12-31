@@ -1,4 +1,37 @@
-"""Dependency Injection Container for AI Automation Framework."""
+"""Dependency Injection Container for AI Automation Framework.
+
+This module provides a comprehensive dependency injection (DI) system with support for
+multiple dependency lifetimes, automatic constructor injection, factory functions,
+named dependencies, lazy resolution, and scoped containers.
+
+Key Features:
+    - Three dependency lifetimes: SINGLETON, TRANSIENT, and SCOPED
+    - Automatic constructor injection using type hints
+    - Factory function support for complex object creation
+    - Named dependencies for multiple implementations of the same interface
+    - Lazy resolution with proxy objects
+    - Child containers for scoped dependency management
+    - Circular dependency detection
+    - Thread-safe operations
+
+Typical usage example:
+    ```python
+    from ai_automation_framework.core.di import Container, Lifetime
+
+    # Create and configure container
+    container = Container()
+    container.register(ILogger, ConsoleLogger, Lifetime.SINGLETON)
+    container.register(IDatabase, MySQLDatabase, Lifetime.SCOPED)
+
+    # Resolve dependencies
+    logger = container.resolve(ILogger)
+
+    # Use scoped containers
+    with container.create_scope() as scope:
+        db = scope.resolve(IDatabase)
+        # Scoped instances are cleaned up on scope exit
+    ```
+"""
 
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -12,37 +45,130 @@ import weakref
 
 
 class Lifetime(Enum):
-    """Dependency lifetime options."""
-    SINGLETON = "singleton"  # One instance for entire container
-    TRANSIENT = "transient"  # New instance every time
-    SCOPED = "scoped"  # One instance per scope/child container
+    """Dependency lifetime options for controlling instance creation and caching.
+
+    Attributes:
+        SINGLETON: One instance is created and shared across the entire container.
+            The instance is cached and reused for all resolutions.
+        TRANSIENT: A new instance is created every time the dependency is resolved.
+            No caching occurs.
+        SCOPED: One instance is created per scope (child container).
+            The instance is cached within the scope and reused within that scope only.
+
+    Example:
+        ```python
+        # Singleton - one instance for the entire application
+        container.register(IConfig, AppConfig, Lifetime.SINGLETON)
+
+        # Transient - new instance each time
+        container.register(IRequest, HttpRequest, Lifetime.TRANSIENT)
+
+        # Scoped - one instance per scope/request
+        container.register(IDbContext, DatabaseContext, Lifetime.SCOPED)
+        ```
+    """
+    SINGLETON = "singleton"
+    TRANSIENT = "transient"
+    SCOPED = "scoped"
 
 
 T = TypeVar('T')
 
 
 class DIError(Exception):
-    """Base exception for dependency injection errors."""
+    """Base exception for dependency injection errors.
+
+    All DI-related exceptions inherit from this base class, allowing you to
+    catch all DI errors with a single except clause.
+    """
     pass
 
 
 class CircularDependencyError(DIError):
-    """Raised when circular dependencies are detected."""
+    """Raised when circular dependencies are detected.
+
+    This error occurs when a dependency chain forms a loop, such as:
+    A depends on B, B depends on C, and C depends on A.
+
+    Example:
+        ```python
+        class A:
+            def __init__(self, b: 'B'):
+                self.b = b
+
+        class B:
+            def __init__(self, a: A):
+                self.a = a
+
+        # This will raise CircularDependencyError
+        container.register(A)
+        container.register(B)
+        container.resolve(A)  # Circular: A -> B -> A
+        ```
+    """
     pass
 
 
 class ResolutionError(DIError):
-    """Raised when a dependency cannot be resolved."""
+    """Raised when a dependency cannot be resolved.
+
+    This can occur when:
+    - A service type is not registered
+    - A required constructor parameter cannot be resolved
+    - An error occurs during instance creation
+
+    Example:
+        ```python
+        # Service not registered
+        container.resolve(ILogger)  # ResolutionError: No registration found
+
+        # Missing dependency
+        class Service:
+            def __init__(self, logger: ILogger):
+                self.logger = logger
+
+        container.register(Service)
+        container.resolve(Service)  # ResolutionError: Cannot resolve ILogger
+        ```
+    """
     pass
 
 
 class RegistrationError(DIError):
-    """Raised when a dependency registration fails."""
+    """Raised when a dependency registration fails.
+
+    This typically occurs when registration parameters are invalid or conflicting.
+
+    Example:
+        ```python
+        # Invalid - providing both implementation and factory
+        Registration(
+            service_type=ILogger,
+            implementation=ConsoleLogger,
+            factory=lambda c: ConsoleLogger()  # Error!
+        )
+        ```
+    """
     pass
 
 
 class Registration:
-    """Represents a dependency registration."""
+    """Represents a dependency registration in the DI container.
+
+    A registration defines how a service type should be resolved, including what
+    implementation to use, how instances should be created, and their lifetime.
+
+    Attributes:
+        service_type (Type): The service type (interface or base class).
+        implementation (Optional[Union[Type, Callable]]): The concrete implementation class.
+        factory (Optional[Callable]): Factory function for creating instances.
+        instance (Optional[Any]): Pre-created instance.
+        lifetime (Lifetime): The lifetime of the dependency.
+        name (Optional[str]): Optional name for named registration.
+
+    Note:
+        Exactly one of implementation, factory, or instance must be provided.
+    """
 
     def __init__(
         self,
@@ -53,19 +179,46 @@ class Registration:
         lifetime: Lifetime = Lifetime.TRANSIENT,
         name: Optional[str] = None
     ):
-        """
-        Initialize a registration.
+        """Initialize a registration.
 
         Args:
-            service_type: The service type (interface or base class)
-            implementation: The concrete implementation class
-            factory: Factory function for creating instances
-            instance: Pre-created instance
-            lifetime: The lifetime of the dependency
-            name: Optional name for named registration
+            service_type (Type): The service type (interface or base class).
+            implementation (Optional[Union[Type, Callable]]): The concrete implementation
+                class. Defaults to None.
+            factory (Optional[Callable]): Factory function for creating instances.
+                Should accept a Container and return an instance. Defaults to None.
+            instance (Optional[Any]): Pre-created instance to register. Defaults to None.
+            lifetime (Lifetime): The lifetime of the dependency. Defaults to TRANSIENT.
+            name (Optional[str]): Optional name for named registration. Allows multiple
+                implementations of the same interface. Defaults to None.
 
         Raises:
-            RegistrationError: If registration parameters are invalid
+            RegistrationError: If registration parameters are invalid (e.g., multiple
+                or no creation methods provided).
+
+        Example:
+            ```python
+            # Registration with implementation
+            reg = Registration(
+                service_type=ILogger,
+                implementation=ConsoleLogger,
+                lifetime=Lifetime.SINGLETON
+            )
+
+            # Registration with factory
+            reg = Registration(
+                service_type=IConfig,
+                factory=lambda c: Config.from_file("config.json"),
+                lifetime=Lifetime.SINGLETON
+            )
+
+            # Registration with instance
+            logger = ConsoleLogger()
+            reg = Registration(
+                service_type=ILogger,
+                instance=logger
+            )
+            ```
         """
         self.service_type = service_type
         self.implementation = implementation
@@ -82,16 +235,45 @@ class Registration:
 
 
 class LazyProxy(Generic[T]):
-    """Lazy proxy for deferred dependency resolution."""
+    """Lazy proxy for deferred dependency resolution.
+
+    LazyProxy delays the resolution of a dependency until it's first accessed.
+    This is useful for breaking circular dependencies, improving startup performance,
+    or deferring expensive object creation.
+
+    The proxy transparently forwards all attribute access and method calls to the
+    underlying instance once it's resolved.
+
+    Example:
+        ```python
+        # Create lazy proxy - no resolution yet
+        logger = container.resolve_lazy(ILogger)
+
+        # Resolution happens on first access
+        logger.info("This triggers resolution")
+
+        # Subsequent access uses cached instance
+        logger.debug("This uses the cached instance")
+        ```
+
+    Note:
+        The proxy only resolves the instance once. After the first resolution,
+        the same instance is reused for all subsequent accesses.
+    """
 
     def __init__(self, container: 'Container', service_type: Type[T], name: Optional[str] = None):
-        """
-        Initialize a lazy proxy.
+        """Initialize a lazy proxy.
 
         Args:
-            container: The DI container
-            service_type: The service type to resolve
-            name: Optional name for named resolution
+            container (Container): The DI container used for resolution.
+            service_type (Type[T]): The service type to resolve.
+            name (Optional[str]): Optional name for named resolution. Defaults to None.
+
+        Example:
+            ```python
+            proxy = LazyProxy(container, ILogger)
+            proxy_named = LazyProxy(container, ILogger, name="file")
+            ```
         """
         self._container = container
         self._service_type = service_type
@@ -100,11 +282,17 @@ class LazyProxy(Generic[T]):
         self._resolved = False
 
     def _resolve(self) -> T:
-        """
-        Resolve the actual instance.
+        """Resolve the actual instance.
+
+        Performs lazy resolution of the service on first call, then caches
+        the result for subsequent calls.
 
         Returns:
-            The resolved instance
+            T: The resolved instance of the service.
+
+        Raises:
+            ResolutionError: If the service cannot be resolved.
+            CircularDependencyError: If circular dependency is detected.
         """
         if not self._resolved:
             self._instance = self._container.resolve(self._service_type, self._name)
@@ -112,11 +300,38 @@ class LazyProxy(Generic[T]):
         return self._instance
 
     def __getattr__(self, name: str) -> Any:
-        """Delegate attribute access to resolved instance."""
+        """Delegate attribute access to the resolved instance.
+
+        Args:
+            name (str): The attribute name to access.
+
+        Returns:
+            Any: The attribute value from the resolved instance.
+
+        Example:
+            ```python
+            logger = container.resolve_lazy(ILogger)
+            level = logger.level  # Resolves and gets attribute
+            ```
+        """
         return getattr(self._resolve(), name)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """Delegate calls to resolved instance."""
+        """Delegate method calls to the resolved instance.
+
+        Args:
+            *args: Positional arguments to pass to the resolved instance.
+            **kwargs: Keyword arguments to pass to the resolved instance.
+
+        Returns:
+            Any: The return value from calling the resolved instance.
+
+        Example:
+            ```python
+            factory = container.resolve_lazy(IFactory)
+            result = factory.create("item")  # Resolves and calls
+            ```
+        """
         return self._resolve()(*args, **kwargs)
 
 
@@ -158,11 +373,23 @@ class Container:
     """
 
     def __init__(self, parent: Optional['Container'] = None):
-        """
-        Initialize the container.
+        """Initialize the container.
 
         Args:
-            parent: Optional parent container for scoped resolution
+            parent (Optional[Container]): Optional parent container for scoped resolution.
+                When a child container cannot resolve a dependency, it delegates to its
+                parent. Defaults to None.
+
+        Example:
+            ```python
+            # Root container
+            root = Container()
+
+            # Child container with parent
+            child = Container(parent=root)
+            # Or use create_scope()
+            child = root.create_scope()
+            ```
         """
         self._registrations: Dict[tuple, Registration] = {}
         self._singletons: Dict[tuple, Any] = {}
@@ -178,21 +405,33 @@ class Container:
         lifetime: Lifetime = Lifetime.TRANSIENT,
         name: Optional[str] = None
     ) -> 'Container':
-        """
-        Register a service with its implementation.
+        """Register a service with its implementation.
 
         Args:
-            service_type: The service type (interface or base class)
-            implementation: The concrete implementation class (defaults to service_type)
-            lifetime: The lifetime of the dependency
-            name: Optional name for named registration
+            service_type (Type[T]): The service type (interface or base class) to register.
+            implementation (Optional[Type[T]]): The concrete implementation class.
+                If None, service_type is used as both interface and implementation.
+                Defaults to None.
+            lifetime (Lifetime): The lifetime of the dependency (SINGLETON, TRANSIENT,
+                or SCOPED). Defaults to TRANSIENT.
+            name (Optional[str]): Optional name for named registration. Allows multiple
+                implementations of the same interface. Defaults to None.
 
         Returns:
-            Self for method chaining
+            Container: Self for method chaining.
 
         Example:
+            ```python
+            # Register with different interface and implementation
             container.register(ILogger, ConsoleLogger, Lifetime.SINGLETON)
+
+            # Register class as both interface and implementation
+            container.register(ConfigService, lifetime=Lifetime.SINGLETON)
+
+            # Register named dependency
             container.register(IDatabase, MySQLDatabase, name="primary")
+            container.register(IDatabase, PostgresDatabase, name="backup")
+            ```
         """
         with self._lock:
             key = (service_type, name)
@@ -211,20 +450,30 @@ class Container:
         instance: T,
         name: Optional[str] = None
     ) -> 'Container':
-        """
-        Register a pre-created instance.
+        """Register a pre-created instance.
+
+        This is useful for registering objects that are already created,
+        configured, or obtained from external sources. The instance is
+        treated as a singleton.
 
         Args:
-            service_type: The service type
-            instance: The instance to register
-            name: Optional name for named registration
+            service_type (Type[T]): The service type to register the instance under.
+            instance (T): The pre-created instance to register.
+            name (Optional[str]): Optional name for named registration. Defaults to None.
 
         Returns:
-            Self for method chaining
+            Container: Self for method chaining.
 
         Example:
-            logger = ConsoleLogger()
+            ```python
+            # Register pre-configured instance
+            logger = ConsoleLogger(level=LogLevel.DEBUG)
             container.register_instance(ILogger, logger)
+
+            # Register named instance
+            primary_db = MySQLDatabase(host="primary.db.com")
+            container.register_instance(IDatabase, primary_db, name="primary")
+            ```
         """
         with self._lock:
             key = (service_type, name)
@@ -245,24 +494,43 @@ class Container:
         lifetime: Lifetime = Lifetime.TRANSIENT,
         name: Optional[str] = None
     ) -> 'Container':
-        """
-        Register a factory function for creating instances.
+        """Register a factory function for creating instances.
+
+        Factory functions provide full control over object creation. They receive
+        the container as a parameter, allowing them to resolve dependencies manually
+        or perform complex initialization logic.
 
         Args:
-            service_type: The service type
-            factory: Factory function that takes container and returns instance
-            lifetime: The lifetime of the dependency
-            name: Optional name for named registration
+            service_type (Type[T]): The service type to register.
+            factory (Callable[[Container], T]): Factory function that takes the
+                container and returns an instance of the service.
+            lifetime (Lifetime): The lifetime of the dependency. Defaults to TRANSIENT.
+            name (Optional[str]): Optional name for named registration. Defaults to None.
 
         Returns:
-            Self for method chaining
+            Container: Self for method chaining.
 
         Example:
+            ```python
+            # Factory with dependency resolution
             container.register_factory(
                 ILogger,
                 lambda c: ConsoleLogger(c.resolve(IConfig)),
                 Lifetime.SINGLETON
             )
+
+            # Factory with complex initialization
+            def create_database(c: Container) -> IDatabase:
+                config = c.resolve(IConfig)
+                db = MySQLDatabase(
+                    host=config.db_host,
+                    port=config.db_port
+                )
+                db.connect()
+                return db
+
+            container.register_factory(IDatabase, create_database, Lifetime.SCOPED)
+            ```
         """
         with self._lock:
             key = (service_type, name)
@@ -276,23 +544,44 @@ class Container:
         return self
 
     def resolve(self, service_type: Type[T], name: Optional[str] = None) -> T:
-        """
-        Resolve a dependency.
+        """Resolve a dependency.
+
+        Resolves a registered service type to an instance based on its registration
+        and lifetime. Supports automatic constructor injection, circular dependency
+        detection, and delegation to parent containers.
 
         Args:
-            service_type: The service type to resolve
-            name: Optional name for named resolution
+            service_type (Type[T]): The service type to resolve.
+            name (Optional[str]): Optional name for named resolution. When provided,
+                resolves the named registration. Defaults to None.
 
         Returns:
-            The resolved instance
+            T: The resolved instance of the requested service type.
 
         Raises:
-            ResolutionError: If the service cannot be resolved
-            CircularDependencyError: If circular dependency is detected
+            ResolutionError: If the service type is not registered or dependencies
+                cannot be resolved.
+            CircularDependencyError: If a circular dependency is detected in the
+                resolution chain.
 
         Example:
+            ```python
+            # Resolve unnamed service
             logger = container.resolve(ILogger)
-            db = container.resolve(IDatabase, name="primary")
+
+            # Resolve named service
+            primary_db = container.resolve(IDatabase, name="primary")
+            backup_db = container.resolve(IDatabase, name="backup")
+
+            # Automatic constructor injection
+            class UserService:
+                def __init__(self, logger: ILogger, db: IDatabase):
+                    self.logger = logger
+                    self.db = db
+
+            container.register(UserService)
+            service = container.resolve(UserService)  # Dependencies auto-injected
+            ```
         """
         key = (service_type, name)
 
@@ -310,18 +599,20 @@ class Container:
             self._resolution_stack.pop()
 
     def _resolve_internal(self, service_type: Type[T], name: Optional[str] = None) -> T:
-        """
-        Internal resolution logic.
+        """Internal resolution logic.
+
+        Handles the core logic for resolving dependencies including registration lookup,
+        parent delegation, and lifetime-based instance creation/retrieval.
 
         Args:
-            service_type: The service type to resolve
-            name: Optional name for named resolution
+            service_type (Type[T]): The service type to resolve.
+            name (Optional[str]): Optional name for named resolution. Defaults to None.
 
         Returns:
-            The resolved instance
+            T: The resolved instance.
 
         Raises:
-            ResolutionError: If the service cannot be resolved
+            ResolutionError: If the service cannot be resolved (no registration found).
         """
         key = (service_type, name)
 
@@ -360,15 +651,17 @@ class Container:
             return self._create_instance(registration)
 
     def _find_registration(self, service_type: Type, name: Optional[str] = None) -> Optional[Registration]:
-        """
-        Find a registration in this container or parent containers.
+        """Find a registration in this container or parent containers.
+
+        Searches for a registration in the current container and recursively
+        searches parent containers if not found.
 
         Args:
-            service_type: The service type to find
-            name: Optional name for named lookup
+            service_type (Type): The service type to find.
+            name (Optional[str]): Optional name for named lookup. Defaults to None.
 
         Returns:
-            The registration if found, None otherwise
+            Optional[Registration]: The registration if found, None otherwise.
         """
         key = (service_type, name)
         registration = self._registrations.get(key)
@@ -382,15 +675,17 @@ class Container:
         return registration
 
     def _resolve_singleton(self, key: tuple, registration: Registration) -> Any:
-        """
-        Resolve a singleton instance.
+        """Resolve a singleton instance.
+
+        Creates the singleton instance on first resolution and caches it for
+        subsequent resolutions. Uses double-checked locking for thread safety.
 
         Args:
-            key: The registration key
-            registration: The registration
+            key (tuple): The registration key (service_type, name).
+            registration (Registration): The registration configuration.
 
         Returns:
-            The singleton instance
+            Any: The singleton instance.
         """
         # Check if already created
         if key in self._singletons:
@@ -407,15 +702,18 @@ class Container:
             return instance
 
     def _resolve_scoped(self, key: tuple, registration: Registration) -> Any:
-        """
-        Resolve a scoped instance.
+        """Resolve a scoped instance.
+
+        Creates a scoped instance on first resolution within the scope and caches
+        it for subsequent resolutions in the same scope. Uses double-checked locking
+        for thread safety.
 
         Args:
-            key: The registration key
-            registration: The registration
+            key (tuple): The registration key (service_type, name).
+            registration (Registration): The registration configuration.
 
         Returns:
-            The scoped instance
+            Any: The scoped instance.
         """
         # Scoped instances are created once per container scope
         if key in self._scoped_instances:
@@ -430,14 +728,19 @@ class Container:
             return instance
 
     def _create_instance(self, registration: Registration) -> Any:
-        """
-        Create a new instance based on registration.
+        """Create a new instance based on registration.
+
+        Creates an instance using one of three methods: pre-created instance,
+        factory function, or constructor injection.
 
         Args:
-            registration: The registration
+            registration (Registration): The registration configuration.
 
         Returns:
-            The created instance
+            Any: The created instance.
+
+        Raises:
+            ResolutionError: If instance creation fails.
         """
         # If instance is already provided
         if registration.instance is not None:
@@ -452,17 +755,32 @@ class Container:
         return self._inject_constructor(implementation)
 
     def _inject_constructor(self, cls: Type[T]) -> T:
-        """
-        Create instance with constructor injection based on type hints.
+        """Create instance with constructor injection based on type hints.
+
+        Analyzes the constructor signature, extracts type hints, resolves
+        dependencies, and creates an instance with all dependencies injected.
+        Handles optional parameters, forward references, and Union types.
 
         Args:
-            cls: The class to instantiate
+            cls (Type[T]): The class to instantiate.
 
         Returns:
-            The created instance with injected dependencies
+            T: The created instance with injected dependencies.
 
         Raises:
-            ResolutionError: If dependencies cannot be resolved
+            ResolutionError: If required dependencies cannot be resolved or
+                instance creation fails.
+
+        Example:
+            ```python
+            class UserService:
+                def __init__(self, logger: ILogger, db: IDatabase):
+                    self.logger = logger
+                    self.db = db
+
+            # Container automatically resolves ILogger and IDatabase
+            service = container._inject_constructor(UserService)
+            ```
         """
         try:
             # Get constructor signature
@@ -492,13 +810,22 @@ class Container:
 
                 # Handle string annotations (forward references)
                 if isinstance(param_type, str):
-                    # Try to resolve the string to a type
+                    # Try to resolve the string to a type safely (without eval)
                     try:
                         # Get the class's module namespace
                         module = inspect.getmodule(cls)
                         namespace = vars(module) if module else {}
-                        param_type = eval(param_type, namespace)
-                    except (NameError, SyntaxError, AttributeError):
+                        # Safely lookup the type by name from the namespace
+                        # This avoids using eval() which is a security risk
+                        if param_type in namespace:
+                            param_type = namespace[param_type]
+                        elif hasattr(__builtins__, param_type) if isinstance(__builtins__, dict) else hasattr(__builtins__, param_type):
+                            # Check if it's a builtin type
+                            param_type = getattr(__builtins__, param_type) if isinstance(__builtins__, dict) else __builtins__.__dict__.get(param_type)
+                        else:
+                            # Can't resolve forward reference safely, skip
+                            continue
+                    except (NameError, AttributeError, TypeError):
                         # Can't resolve forward reference, skip this parameter
                         continue
 
@@ -536,51 +863,112 @@ class Container:
             )
 
     def resolve_lazy(self, service_type: Type[T], name: Optional[str] = None) -> LazyProxy[T]:
-        """
-        Create a lazy proxy for deferred resolution.
+        """Create a lazy proxy for deferred resolution.
+
+        Returns a proxy object that delays dependency resolution until the first
+        time the object is accessed. This is useful for breaking circular dependencies,
+        improving startup time, or deferring expensive initialization.
 
         Args:
-            service_type: The service type to resolve
-            name: Optional name for named resolution
+            service_type (Type[T]): The service type to resolve lazily.
+            name (Optional[str]): Optional name for named resolution. Defaults to None.
 
         Returns:
-            A lazy proxy that resolves on first access
+            LazyProxy[T]: A lazy proxy that resolves on first access.
 
         Example:
+            ```python
+            # Create lazy proxy - no resolution happens yet
             logger = container.resolve_lazy(ILogger)
-            # Logger is not resolved yet
+
+            # Resolution happens on first access
             logger.info("Now it's resolved")
+
+            # Subsequent calls use cached instance
+            logger.debug("Uses same instance")
+
+            # Useful for circular dependencies
+            class A:
+                def __init__(self, b: LazyProxy['B']):
+                    self.b = b
+
+            class B:
+                def __init__(self, a: A):
+                    self.a = a
+
+            container.register(A)
+            container.register(B)
+            # Use lazy proxy to break the cycle
+            ```
         """
         return LazyProxy(self, service_type, name)
 
     def create_scope(self) -> 'Container':
-        """
-        Create a child container for scoped resolution.
+        """Create a child container for scoped resolution.
+
+        Creates a new child container that inherits all registrations from its parent.
+        SCOPED dependencies are created once per scope and cleaned up when the scope
+        exits. SINGLETON dependencies are shared with the parent. TRANSIENT dependencies
+        are created fresh each time.
 
         Returns:
-            A new child container with this container as parent
+            Container: A new child container with this container as parent.
 
         Example:
+            ```python
+            # Basic scoped usage
             with container.create_scope() as scope:
                 service = scope.resolve(IScopedService)
-                # Scoped instances are disposed when scope exits
+                # Scoped instances are cleaned up on scope exit
+
+            # Multiple scopes are isolated
+            with container.create_scope() as scope1:
+                db1 = scope1.resolve(IDatabase)  # Creates scoped instance
+
+            with container.create_scope() as scope2:
+                db2 = scope2.resolve(IDatabase)  # Creates new scoped instance
+
+            # Useful for request-scoped dependencies in web applications
+            def handle_request():
+                with container.create_scope() as request_scope:
+                    handler = request_scope.resolve(IRequestHandler)
+                    handler.process()
+            ```
         """
         return Container(parent=self)
 
     def is_registered(self, service_type: Type, name: Optional[str] = None) -> bool:
-        """
-        Check if a service is registered.
+        """Check if a service is registered.
+
+        Checks if a service type is registered in this container or any parent
+        container. Useful for conditional resolution or validation.
 
         Args:
-            service_type: The service type to check
-            name: Optional name to check
+            service_type (Type): The service type to check.
+            name (Optional[str]): Optional name to check for named registrations.
+                Defaults to None.
 
         Returns:
-            True if registered, False otherwise
+            bool: True if the service is registered, False otherwise.
 
         Example:
+            ```python
+            # Check before resolving
             if container.is_registered(ILogger):
                 logger = container.resolve(ILogger)
+            else:
+                logger = DefaultLogger()
+
+            # Check named registration
+            if container.is_registered(IDatabase, name="primary"):
+                db = container.resolve(IDatabase, name="primary")
+
+            # Validation
+            required_services = [ILogger, IDatabase, ICache]
+            missing = [s for s in required_services if not container.is_registered(s)]
+            if missing:
+                raise ValueError(f"Missing registrations: {missing}")
+            ```
         """
         key = (service_type, name)
         if key in self._registrations:
@@ -590,12 +978,33 @@ class Container:
         return False
 
     def clear(self) -> None:
-        """
-        Clear all registrations and cached instances.
+        """Clear all registrations and cached instances.
+
+        Removes all registrations and clears all cached singleton and scoped instances.
+        This effectively resets the container to its initial empty state.
 
         Warning:
             This will remove all registrations and clear singleton/scoped caches.
-            Use with caution.
+            Use with caution as it will affect all code using this container.
+
+        Example:
+            ```python
+            # Register services
+            container.register(ILogger, ConsoleLogger)
+            container.register(IDatabase, MySQLDatabase)
+
+            # Clear everything
+            container.clear()
+
+            # Container is now empty
+            assert not container.is_registered(ILogger)
+
+            # Useful for testing
+            def test_something():
+                container.clear()  # Start with clean state
+                container.register(ILogger, MockLogger)
+                # ... test code ...
+            ```
         """
         with self._lock:
             self._registrations.clear()
@@ -603,11 +1012,38 @@ class Container:
             self._scoped_instances.clear()
 
     def __enter__(self) -> 'Container':
-        """Context manager entry."""
+        """Context manager entry.
+
+        Returns:
+            Container: Self, allowing the container to be used with 'with' statements.
+
+        Example:
+            ```python
+            with container.create_scope() as scope:
+                service = scope.resolve(IScopedService)
+            ```
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Context manager exit - clears scoped instances."""
+        """Context manager exit - clears scoped instances.
+
+        Cleans up all scoped instances when exiting the context. This ensures
+        proper resource cleanup for scoped dependencies.
+
+        Args:
+            exc_type: The exception type if an exception occurred.
+            exc_val: The exception value if an exception occurred.
+            exc_tb: The exception traceback if an exception occurred.
+
+        Example:
+            ```python
+            with container.create_scope() as scope:
+                db = scope.resolve(IDatabase)  # Scoped instance created
+                # Use db...
+            # db and other scoped instances are now cleaned up
+            ```
+        """
         self._scoped_instances.clear()
 
 
@@ -616,15 +1052,35 @@ _global_container: Optional[Container] = None
 
 
 def get_global_container() -> Container:
-    """
-    Get or create the global container instance.
+    """Get or create the global container instance.
+
+    Returns a singleton container instance that can be used throughout the
+    application. This is convenient for simple applications but consider using
+    explicit container passing for better testability.
 
     Returns:
-        The global container
+        Container: The global container instance.
 
     Example:
+        ```python
+        # Get global container and configure
         container = get_global_container()
-        container.register(ILogger, ConsoleLogger)
+        container.register(ILogger, ConsoleLogger, Lifetime.SINGLETON)
+        container.register(IDatabase, MySQLDatabase, Lifetime.SCOPED)
+
+        # Access from anywhere in the application
+        def some_function():
+            container = get_global_container()
+            logger = container.resolve(ILogger)
+            logger.info("Using global container")
+
+        # Better for simple applications
+        get_global_container().register(IConfig, AppConfig)
+        ```
+
+    Note:
+        While convenient, global containers can make testing harder. Consider
+        passing containers explicitly for better dependency management.
     """
     global _global_container
     if _global_container is None:
@@ -633,10 +1089,41 @@ def get_global_container() -> Container:
 
 
 def reset_global_container() -> None:
-    """
-    Reset the global container.
+    """Reset the global container.
 
-    This is useful for testing or reinitializing the application.
+    Clears the global container reference, causing the next call to
+    get_global_container() to create a new container instance.
+
+    This is useful for testing to ensure a clean state between tests,
+    or for reinitializing the application.
+
+    Example:
+        ```python
+        # In test setup
+        def setup():
+            reset_global_container()
+            container = get_global_container()
+            # Register test dependencies
+            container.register(ILogger, MockLogger)
+
+        # Reinitialize application
+        def restart_app():
+            reset_global_container()
+            container = get_global_container()
+            # Register fresh dependencies
+            setup_dependencies(container)
+
+        # Test isolation
+        def test_service_a():
+            reset_global_container()
+            # Test with clean container
+            pass
+
+        def test_service_b():
+            reset_global_container()
+            # Test with clean container
+            pass
+        ```
     """
     global _global_container
     _global_container = None

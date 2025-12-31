@@ -2,9 +2,33 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional, Callable, Type, TypeVar, Union, Literal
+try:
+    from typing_extensions import TypedDict  # Prefer typing_extensions for Pydantic compatibility
+except ImportError:
+    from typing import TypedDict  # Fallback for environments without typing_extensions
 import inspect
 from threading import Lock
+
+# TypeVar for generic tool types
+T = TypeVar('T', bound='BaseTool')
+
+
+class ToolExecutionSuccess(TypedDict, total=False):
+    """Type definition for successful tool execution result."""
+    success: Literal[True]
+    result: Any
+
+
+class ToolExecutionError(TypedDict, total=False):
+    """Type definition for failed tool execution result."""
+    success: Literal[False]
+    error: str
+    tool: str
+
+
+# Union type for tool execution results
+ToolExecutionResult = Union[ToolExecutionSuccess, ToolExecutionError]
 
 
 @dataclass
@@ -43,7 +67,7 @@ class BaseTool(ABC):
 
     metadata: ToolMetadata
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化工具。"""
         if not hasattr(self, 'metadata'):
             raise AttributeError(
@@ -51,7 +75,7 @@ class BaseTool(ABC):
             )
 
     @abstractmethod
-    def validate_inputs(self, **kwargs) -> bool:
+    def validate_inputs(self, **kwargs: Any) -> bool:
         """验证输入参数。
 
         Args:
@@ -66,7 +90,7 @@ class BaseTool(ABC):
         pass
 
     @abstractmethod
-    def execute(self, **kwargs) -> Dict[str, Any]:
+    def execute(self, **kwargs: Any) -> Dict[str, Any]:
         """执行工具功能。
 
         Args:
@@ -77,7 +101,7 @@ class BaseTool(ABC):
         """
         pass
 
-    def pre_execute(self, **kwargs) -> None:
+    def pre_execute(self, **kwargs: Any) -> None:
         """执行前的钩子方法。
 
         子类可以覆盖此方法以实现执行前的准备工作。
@@ -87,7 +111,7 @@ class BaseTool(ABC):
         """
         pass
 
-    def post_execute(self, result: Dict[str, Any], **kwargs) -> Dict[str, Any]:
+    def post_execute(self, result: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """执行后的钩子方法。
 
         子类可以覆盖此方法以实现执行后的清理或结果处理工作。
@@ -101,7 +125,7 @@ class BaseTool(ABC):
         """
         return result
 
-    def run(self, **kwargs) -> Dict[str, Any]:
+    def run(self, **kwargs: Any) -> Dict[str, Any]:
         """运行工具的完整生命周期。
 
         这个方法封装了 pre_execute、validate_inputs、execute 和 post_execute 的调用。
@@ -206,7 +230,7 @@ class ToolRegistry:
     _instance: Optional['ToolRegistry'] = None
     _lock: Lock = Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> 'ToolRegistry':
         """单例模式实现。"""
         if cls._instance is None:
             with cls._lock:
@@ -215,17 +239,17 @@ class ToolRegistry:
                     cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化注册表。"""
         if self._initialized:
             return
 
-        self._tools: Dict[str, type] = {}
+        self._tools: Dict[str, Type[BaseTool]] = {}
         self._tool_instances: Dict[str, BaseTool] = {}
         self._categories: Dict[str, List[str]] = {}
         self._initialized = True
 
-    def register(self, tool_class: type, singleton: bool = True) -> None:
+    def register(self, tool_class: Type[BaseTool], singleton: bool = True) -> None:
         """注册工具类。
 
         Args:
@@ -359,7 +383,7 @@ class ToolRegistry:
 
         return schemas
 
-    def execute_tool(self, name: str, **kwargs) -> Dict[str, Any]:
+    def execute_tool(self, name: str, **kwargs: Any) -> Dict[str, Any]:
         """执行工具。
 
         这是一个便捷方法，用于直接通过工具名称执行工具。
@@ -406,7 +430,7 @@ def get_tool_registry() -> ToolRegistry:
     return _global_registry
 
 
-def register_tool(tool_class: type, singleton: bool = True) -> type:
+def register_tool(tool_class: Type[T], singleton: bool = True) -> Type[T]:
     """装饰器：注册工具类。
 
     使用方法：
@@ -419,7 +443,7 @@ def register_tool(tool_class: type, singleton: bool = True) -> type:
         singleton: 是否使用单例模式
 
     Returns:
-        type: 原始工具类（支持链式装饰）
+        Type[T]: 原始工具类（支持链式装饰）
     """
     registry = get_tool_registry()
     registry.register(tool_class, singleton=singleton)

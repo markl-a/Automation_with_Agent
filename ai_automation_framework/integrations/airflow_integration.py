@@ -154,8 +154,9 @@ class AirflowIntegration:
 
     def close(self) -> None:
         """Close the HTTP session and cleanup resources."""
-        if hasattr(self, 'session'):
+        if hasattr(self, 'session') and self.session:
             self.session.close()
+            self.session = None
 
     def __enter__(self):
         """Context manager entry."""
@@ -165,6 +166,10 @@ class AirflowIntegration:
         """Context manager exit."""
         self.close()
         return False
+
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        self.close()
 
     @staticmethod
     def generate_dag_template(

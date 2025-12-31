@@ -67,8 +67,16 @@ class N8NIntegration:
                 "status_code": response.status_code,
                 "response": response.json() if response.text else None
             }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except requests.Timeout as e:
+            return {"success": False, "error": f"Request timeout: {str(e)}", "error_type": "timeout"}
+        except requests.ConnectionError as e:
+            return {"success": False, "error": f"Connection error: {str(e)}", "error_type": "connection_error"}
+        except requests.HTTPError as e:
+            return {"success": False, "error": f"HTTP error: {str(e)}", "error_type": "http_error"}
+        except json.JSONDecodeError as e:
+            return {"success": False, "error": f"Invalid JSON response: {str(e)}", "error_type": "json_error"}
+        except requests.RequestException as e:
+            return {"success": False, "error": f"Request failed: {str(e)}", "error_type": "request_error"}
 
     def get_workflows(self) -> Dict[str, Any]:
         """Get list of workflows from n8n."""
@@ -86,8 +94,12 @@ class N8NIntegration:
                 "success": True,
                 "workflows": response.json()
             }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except requests.Timeout as e:
+            return {"success": False, "error": f"Request timeout: {str(e)}", "error_type": "timeout"}
+        except requests.ConnectionError as e:
+            return {"success": False, "error": f"Connection error: {str(e)}", "error_type": "connection_error"}
+        except requests.RequestException as e:
+            return {"success": False, "error": f"Request failed: {str(e)}", "error_type": "request_error"}
 
     def execute_workflow(
         self,
@@ -112,8 +124,12 @@ class N8NIntegration:
                 "execution_id": response.json().get('id'),
                 "result": response.json()
             }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except requests.Timeout as e:
+            return {"success": False, "error": f"Request timeout: {str(e)}", "error_type": "timeout"}
+        except requests.ConnectionError as e:
+            return {"success": False, "error": f"Connection error: {str(e)}", "error_type": "connection_error"}
+        except requests.RequestException as e:
+            return {"success": False, "error": f"Request failed: {str(e)}", "error_type": "request_error"}
 
     def create_workflow_template(self, name: str) -> Dict[str, Any]:
         """
@@ -167,8 +183,9 @@ class N8NIntegration:
 
     def close(self) -> None:
         """Close the HTTP session and cleanup resources."""
-        if hasattr(self, 'session'):
+        if hasattr(self, 'session') and self.session:
             self.session.close()
+            self.session = None
 
     def __enter__(self):
         """Context manager entry."""
@@ -178,6 +195,10 @@ class N8NIntegration:
         """Context manager exit."""
         self.close()
         return False
+
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        self.close()
 
 
 # Example n8n workflow use cases:

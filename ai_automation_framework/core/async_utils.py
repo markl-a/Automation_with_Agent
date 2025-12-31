@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import random
 import time
 from asyncio import Semaphore, Lock
 from contextlib import asynccontextmanager
@@ -76,6 +77,52 @@ async def run_async(func: Callable[..., T], *args, **kwargs) -> T:
     loop = asyncio.get_event_loop()
     partial_func = functools.partial(func, *args, **kwargs)
     return await loop.run_in_executor(None, partial_func)
+
+
+async def async_sleep_with_jitter(
+    base_delay: float,
+    jitter_factor: float = 0.1,
+    max_jitter: Optional[float] = None
+) -> None:
+    """
+    Async sleep with random jitter to prevent thundering herd problems.
+
+    This function adds random jitter to sleep delays, which helps distribute load
+    and prevent multiple clients from synchronizing their retry attempts or periodic
+    tasks, avoiding thundering herd scenarios.
+
+    Args:
+        base_delay: Base delay in seconds
+        jitter_factor: Factor to multiply base_delay for jitter range (default 0.1 = 10%)
+        max_jitter: Maximum jitter in seconds (overrides jitter_factor if specified)
+
+    Returns:
+        None
+
+    Example:
+        >>> # Sleep for approximately 5 seconds with ±10% jitter
+        >>> await async_sleep_with_jitter(5.0)
+        >>>
+        >>> # Sleep for approximately 10 seconds with ±2 second maximum jitter
+        >>> await async_sleep_with_jitter(10.0, max_jitter=2.0)
+        >>>
+        >>> # Sleep for approximately 1 second with ±30% jitter
+        >>> await async_sleep_with_jitter(1.0, jitter_factor=0.3)
+
+    Note:
+        The actual sleep time will be: base_delay + random(-jitter, +jitter)
+        where jitter = min(base_delay * jitter_factor, max_jitter or infinity)
+    """
+    if max_jitter is not None:
+        jitter = max_jitter
+    else:
+        jitter = base_delay * jitter_factor
+
+    # Random jitter between -jitter and +jitter
+    actual_jitter = random.uniform(-jitter, jitter)
+    actual_delay = max(0, base_delay + actual_jitter)  # Ensure non-negative
+
+    await asyncio.sleep(actual_delay)
 
 
 async def gather_with_concurrency(
@@ -337,6 +384,7 @@ class AsyncLock:
 __all__ = [
     "run_sync",
     "run_async",
+    "async_sleep_with_jitter",
     "gather_with_concurrency",
     "async_timeout",
     "retry_async",

@@ -8,6 +8,23 @@ Cloud Services Integration
 import os
 from typing import Optional, List, Dict, Any
 
+
+# Custom exceptions for cloud services
+class CloudServiceError(Exception):
+    """Base exception for cloud service errors."""
+    pass
+
+
+class AzureStorageError(CloudServiceError):
+    """Exception for Azure Blob Storage operations."""
+    pass
+
+
+class AliyunOSSError(CloudServiceError):
+    """Exception for Aliyun OSS operations."""
+    pass
+
+
 # Azure 相關導入
 try:
     from azure.storage.blob import BlobServiceClient, BlobClient
@@ -108,7 +125,7 @@ class AzureStorage:
         except IOError as e:
             raise IOError(f"Failed to read file {file_path}: {str(e)}")
         except Exception as e:
-            raise Exception(f"Failed to upload file to Azure Blob Storage: {str(e)}")
+            raise AzureStorageError(f"Failed to upload file to Azure Blob Storage: {str(e)}")
 
         return blob_client.url
 
@@ -148,7 +165,7 @@ class AzureStorage:
         except IOError as e:
             raise IOError(f"Failed to write file {file_path}: {str(e)}")
         except Exception as e:
-            raise Exception(f"Failed to download file from Azure Blob Storage: {str(e)}")
+            raise AzureStorageError(f"Failed to download file from Azure Blob Storage: {str(e)}")
 
         return file_path
 
@@ -377,7 +394,7 @@ class AliyunOSS:
         try:
             self.bucket.put_object_from_file(object_name, file_path)
         except Exception as e:
-            raise Exception(f"Failed to upload file to Aliyun OSS: {str(e)}")
+            raise AliyunOSSError(f"Failed to upload file to Aliyun OSS: {str(e)}")
 
         return f"https://{self.bucket_name}.{self.endpoint}/{object_name}"
 
@@ -410,7 +427,7 @@ class AliyunOSS:
         except IOError as e:
             raise IOError(f"Failed to write file {file_path}: {str(e)}")
         except Exception as e:
-            raise Exception(f"Failed to download file from Aliyun OSS: {str(e)}")
+            raise AliyunOSSError(f"Failed to download file from Aliyun OSS: {str(e)}")
 
         return file_path
 
@@ -449,7 +466,7 @@ class AliyunOSS:
         try:
             self.bucket.delete_object(object_name)
         except Exception as e:
-            raise Exception(f"Failed to delete object from Aliyun OSS: {str(e)}")
+            raise AliyunOSSError(f"Failed to delete object from Aliyun OSS: {str(e)}")
 
 
 class AliyunClient:

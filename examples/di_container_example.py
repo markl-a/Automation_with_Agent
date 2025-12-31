@@ -105,8 +105,9 @@ class DatabaseConnection:
         self.port = config.get("db_port")
         self.logger.log(f"Database connection initialized: {self.host}:{self.port}")
 
-    def query(self, sql: str) -> str:
-        self.logger.log(f"Executing query: {sql}")
+    def query(self, sql: str, params: tuple = ()) -> str:
+        """Execute a parameterized query safely."""
+        self.logger.log(f"Executing query: {sql} with params: {params}")
         return "Result"
 
 
@@ -363,7 +364,8 @@ class UserRepository:
 
     def get_user(self, user_id: int) -> dict:
         self.logger.log(f"Getting user {user_id}")
-        result = self.db.query(f"SELECT * FROM users WHERE id = {user_id}")
+        # Use parameterized query to prevent SQL injection
+        result = self.db.query("SELECT * FROM users WHERE id = ?", (user_id,))
         return {"id": user_id, "name": "John Doe"}
 
 

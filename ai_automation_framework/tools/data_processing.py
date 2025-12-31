@@ -15,7 +15,7 @@ class ExcelAutomationTool:
     @staticmethod
     def read_excel(
         file_path: str,
-        sheet_name: str = None,
+        sheet_name: Optional[str] = None,
         header: int = 0
     ) -> Dict[str, Any]:
         """
@@ -258,7 +258,7 @@ class CSVProcessingTool:
         file_path: str,
         column: str,
         value: Any,
-        output_path: str = None
+        output_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """Filter CSV by column value."""
         try:

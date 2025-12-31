@@ -293,6 +293,16 @@ class RateLimiter:
 
         return wrapper
 
+    def wait_for_token(self) -> None:
+        """
+        Wait until a token is available and consume it.
+
+        This is a compatibility alias for acquire() that blocks until
+        a token is available. Used for backwards compatibility with
+        code that expects the wait_for_token() interface.
+        """
+        self.acquire(tokens=1, blocking=True)
+
 
 def chunk_list(items: List[T], chunk_size: int) -> List[List[T]]:
     """

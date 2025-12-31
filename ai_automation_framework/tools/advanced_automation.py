@@ -15,70 +15,15 @@ import threading
 import os
 import logging
 
-
-class RateLimiter:
-    """
-    Rate limiter using token bucket algorithm.
-
-    The token bucket algorithm maintains a bucket with a maximum capacity.
-    Tokens are added at a constant rate (rate per second).
-    Each request consumes one token. If no tokens are available, requests must wait.
-    """
-
-    def __init__(self, rate: float):
-        """
-        Initialize rate limiter.
-
-        Args:
-            rate: Maximum number of requests per second (e.g., 2.0 = 2 requests/sec)
-        """
-        if rate <= 0:
-            raise ValueError("Rate must be positive")
-
-        self.rate = rate  # tokens per second
-        self.capacity = max(1.0, rate)  # maximum tokens
-        self.tokens = self.capacity  # current tokens available
-        self.last_update = time.time()
-        self.lock = threading.Lock()
-
-    def _add_tokens(self):
-        """Add tokens based on elapsed time since last update."""
-        now = time.time()
-        elapsed = now - self.last_update
-
-        # Add tokens based on elapsed time
-        self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
-        self.last_update = now
-
-    def wait_for_token(self):
-        """
-        Wait until a token is available and consume it.
-
-        This method blocks until rate limit allows the request.
-        """
-        with self.lock:
-            while True:
-                self._add_tokens()
-
-                if self.tokens >= 1.0:
-                    # Consume one token
-                    self.tokens -= 1.0
-                    return
-
-                # Calculate wait time
-                tokens_needed = 1.0 - self.tokens
-                wait_time = tokens_needed / self.rate
-
-                # Release lock while sleeping to allow other threads
-                # to check if tokens are available
-                time.sleep(min(wait_time, 0.1))
+# Import RateLimiter from core.utils to avoid code duplication
+from ai_automation_framework.core.utils import RateLimiter
 
 
 class EmailAutomationTool:
     """Tool for email automation (SMTP/IMAP)."""
 
-    def __init__(self, smtp_server: str = None, smtp_port: int = 587,
-                 imap_server: str = None, imap_port: int = 993):
+    def __init__(self, smtp_server: Optional[str] = None, smtp_port: int = 587,
+                 imap_server: Optional[str] = None, imap_port: int = 993):
         """
         Initialize email automation tool.
 
@@ -97,11 +42,11 @@ class EmailAutomationTool:
         self,
         sender: str,
         password: Optional[str] = None,
-        recipient: str = None,
-        subject: str = None,
-        body: str = None,
+        recipient: Optional[str] = None,
+        subject: Optional[str] = None,
+        body: Optional[str] = None,
         html: bool = False,
-        password_env_var: str = None
+        password_env_var: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Send an email via SMTP.
@@ -173,8 +118,14 @@ class EmailAutomationTool:
                 "message": f"Email sent to {recipient}",
                 "timestamp": datetime.now().isoformat()
             }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except smtplib.SMTPAuthenticationError as e:
+            return {"success": False, "error": f"Authentication failed: {str(e)}", "error_type": "auth_error"}
+        except smtplib.SMTPServerDisconnected as e:
+            return {"success": False, "error": f"Server disconnected: {str(e)}", "error_type": "connection_error"}
+        except smtplib.SMTPException as e:
+            return {"success": False, "error": f"SMTP error: {str(e)}", "error_type": "smtp_error"}
+        except (ConnectionError, TimeoutError, OSError) as e:
+            return {"success": False, "error": f"Network error: {str(e)}", "error_type": "network_error"}
 
     def read_emails(
         self,
@@ -235,6 +186,7 @@ class EmailAutomationTool:
                     "error": "No password provided. Install 'keyring' package or use password_env_var parameter."
                 }
 
+        mail = None
         try:
             mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
             mail.login(username, actual_password)
@@ -260,9 +212,6 @@ class EmailAutomationTool:
                     "body": self._get_email_body(email_message)
                 })
 
-            mail.close()
-            mail.logout()
-
             return {
                 "success": True,
                 "count": len(emails),
@@ -270,6 +219,13 @@ class EmailAutomationTool:
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
+        finally:
+            if mail:
+                try:
+                    mail.close()
+                    mail.logout()
+                except Exception:
+                    pass  # Ignore cleanup errors
 
     @staticmethod
     def _get_email_body(email_message: email.message.Message) -> str:
@@ -387,7 +343,7 @@ class DatabaseAutomationTool:
 
         return True
 
-    def execute_query(self, query: str, params: tuple = None, skip_validation: bool = False) -> Dict[str, Any]:
+    def execute_query(self, query: str, params: Optional[tuple] = None, skip_validation: bool = False) -> Dict[str, Any]:
         """
         Execute SQL query with safety validation.
 
@@ -424,32 +380,35 @@ class DatabaseAutomationTool:
                 self.connect()
 
             cursor = self.conn.cursor()
-            cursor.execute(query, params or ())
+            try:
+                cursor.execute(query, params or ())
 
-            if query.strip().upper().startswith('SELECT'):
-                rows = cursor.fetchall()
-                results = [dict(row) for row in rows]
-                return {
-                    "success": True,
-                    "rows": len(results),
-                    "data": results
-                }
-            else:
-                self.conn.commit()
-                return {
-                    "success": True,
-                    "affected_rows": cursor.rowcount,
-                    "message": "Query executed successfully"
-                }
+                if query.strip().upper().startswith('SELECT'):
+                    rows = cursor.fetchall()
+                    results = [dict(row) for row in rows]
+                    return {
+                        "success": True,
+                        "rows": len(results),
+                        "data": results
+                    }
+                else:
+                    self.conn.commit()
+                    return {
+                        "success": True,
+                        "affected_rows": cursor.rowcount,
+                        "message": "Query executed successfully"
+                    }
+            finally:
+                cursor.close()
         except Exception as e:
             return {"success": False, "error": str(e)}
 
     def generate_select_query(
         self,
         table: str,
-        columns: List[str] = None,
-        where: Dict[str, Any] = None,
-        limit: int = None
+        columns: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+        limit: Optional[int] = None
     ) -> str:
         """
         Generate SELECT query with SQL injection protection.
@@ -609,36 +568,39 @@ class DatabaseAutomationTool:
             total_inserted = 0
             cursor = self.conn.cursor()
 
-            # Process in batches
-            for batch_start in range(0, len(records), batch_size):
-                batch_end = min(batch_start + batch_size, len(records))
-                batch = records[batch_start:batch_end]
+            try:
+                # Process in batches
+                for batch_start in range(0, len(records), batch_size):
+                    batch_end = min(batch_start + batch_size, len(records))
+                    batch = records[batch_start:batch_end]
 
-                # Begin transaction for this batch
-                cursor.execute("BEGIN TRANSACTION")
+                    # Begin transaction for this batch
+                    cursor.execute("BEGIN TRANSACTION")
 
-                try:
-                    # Execute batch insert
-                    for record in batch:
-                        values = tuple(record[col] for col in columns)
-                        cursor.execute(query, values)
+                    try:
+                        # Execute batch insert
+                        for record in batch:
+                            values = tuple(record[col] for col in columns)
+                            cursor.execute(query, values)
 
-                    # Commit transaction
-                    self.conn.commit()
-                    total_inserted += len(batch)
+                        # Commit transaction
+                        self.conn.commit()
+                        total_inserted += len(batch)
 
-                except Exception as e:
-                    # Rollback on error
-                    self.conn.rollback()
-                    raise Exception(f"Batch insert failed at record {batch_start}: {str(e)}")
+                    except Exception as e:
+                        # Rollback on error
+                        self.conn.rollback()
+                        raise Exception(f"Batch insert failed at record {batch_start}: {str(e)}")
 
-            return {
-                "success": True,
-                "message": f"Successfully inserted {total_inserted} records",
-                "total_inserted": total_inserted,
-                "batches": (len(records) + batch_size - 1) // batch_size,
-                "batch_size": batch_size
-            }
+                return {
+                    "success": True,
+                    "message": f"Successfully inserted {total_inserted} records",
+                    "total_inserted": total_inserted,
+                    "batches": (len(records) + batch_size - 1) // batch_size,
+                    "batch_size": batch_size
+                }
+            finally:
+                cursor.close()
 
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -704,7 +666,7 @@ class WebScraperTool:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def extract_links(self, html_content: str, base_url: str = None) -> Dict[str, Any]:
+    def extract_links(self, html_content: str, base_url: Optional[str] = None) -> Dict[str, Any]:
         """
         Extract all links from HTML.
 
@@ -756,7 +718,7 @@ class WebScraperTool:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def extract_text(self, html_content: str, tag: str = None) -> Dict[str, Any]:
+    def extract_text(self, html_content: str, tag: Optional[str] = None) -> Dict[str, Any]:
         """
         Extract text from HTML.
 
