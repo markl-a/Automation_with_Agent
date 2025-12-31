@@ -8,6 +8,7 @@ Performance Monitoring and Optimization Tools
 import time
 import psutil
 import threading
+import logging
 from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime, timedelta
 from collections import deque
@@ -26,6 +27,9 @@ try:
     HAS_REDIS = True
 except ImportError:
     HAS_REDIS = False
+
+
+logger = logging.getLogger(__name__)
 
 
 class PerformanceMetrics:
@@ -176,9 +180,9 @@ class PerformanceMonitor:
             # 啟動 Prometheus HTTP 服務器
             try:
                 start_http_server(prometheus_port)
-                print(f"Prometheus metrics available at http://localhost:{prometheus_port}/metrics")
+                logger.info(f"Prometheus metrics available at http://localhost:{prometheus_port}/metrics")
             except Exception as e:
-                print(f"Failed to start Prometheus server: {e}")
+                logger.error(f"Failed to start Prometheus server: {e}")
 
         # 啟動系統指標收集線程
         self._start_system_metrics_collector()
@@ -191,6 +195,9 @@ class PerformanceMonitor:
                 if self.enable_prometheus:
                     self.prom_cpu_usage.set(psutil.cpu_percent())
                     self.prom_memory_usage.set(psutil.virtual_memory().percent)
+                # Using time.sleep() instead of asyncio.sleep() because this runs in a daemon thread,
+                # not in an async context. Daemon threads are designed for background tasks and
+                # blocking sleep is appropriate here as it doesn't interfere with the event loop.
                 time.sleep(5)  # 每 5 秒收集一次
 
         thread = threading.Thread(target=collect, daemon=True)
@@ -436,7 +443,7 @@ class PerformanceProfiler:
             from memory_profiler import profile as mem_profile
             return mem_profile(func)
         except ImportError:
-            print("memory_profiler not installed. Install with: pip install memory-profiler")
+            logger.warning("memory_profiler not installed. Install with: pip install memory-profiler")
             return func
 
 
