@@ -1,6 +1,5 @@
 """Image processing, OCR, and messaging platform tools."""
 
-from PIL import Image, ImageEnhance, ImageFilter
 from typing import Dict, Any, List, Optional
 import requests
 import json
@@ -9,6 +8,26 @@ import base64
 import io
 import os
 from urllib.parse import urlparse
+
+# Lazy load PIL - only import when needed
+_PIL_LOADED = False
+Image = None
+ImageEnhance = None
+ImageFilter = None
+
+
+def _ensure_pil():
+    """Lazy load PIL modules."""
+    global _PIL_LOADED, Image, ImageEnhance, ImageFilter
+    if not _PIL_LOADED:
+        try:
+            from PIL import Image as _Image, ImageEnhance as _ImageEnhance, ImageFilter as _ImageFilter
+            Image = _Image
+            ImageEnhance = _ImageEnhance
+            ImageFilter = _ImageFilter
+            _PIL_LOADED = True
+        except ImportError:
+            raise ImportError("PIL (Pillow) is required for image processing. Install with: pip install Pillow")
 
 
 class ImageProcessingTool:
@@ -60,6 +79,7 @@ class ImageProcessingTool:
             return {"success": False, "error": validation_error}
 
         try:
+            _ensure_pil()
             img = Image.open(input_path)
             original_size = img.size
 
@@ -98,6 +118,7 @@ class ImageProcessingTool:
             return {"success": False, "error": validation_error}
 
         try:
+            _ensure_pil()
             img = Image.open(input_path)
             img.save(output_path, format=format.upper())
 
@@ -141,6 +162,7 @@ class ImageProcessingTool:
             return {"success": False, "error": validation_error}
 
         try:
+            _ensure_pil()
             img = Image.open(input_path)
 
             filters = {
@@ -185,6 +207,7 @@ class ImageProcessingTool:
             return {"success": False, "error": validation_error}
 
         try:
+            _ensure_pil()
             img = Image.open(input_path)
             enhancer = ImageEnhance.Brightness(img)
             enhanced = enhancer.enhance(factor)
@@ -217,6 +240,7 @@ class ImageProcessingTool:
             return {"success": False, "error": validation_error}
 
         try:
+            _ensure_pil()
             img = Image.open(input_path)
             img.thumbnail(size, Image.Resampling.LANCZOS)
             img.save(output_path)
@@ -244,6 +268,7 @@ class ImageProcessingTool:
             return {"success": False, "error": validation_error}
 
         try:
+            _ensure_pil()
             img = Image.open(image_path)
 
             return {
@@ -288,6 +313,7 @@ class OCRTool:
 
         try:
             import pytesseract
+            _ensure_pil()
 
             img = Image.open(image_path)
             text = pytesseract.image_to_string(img)

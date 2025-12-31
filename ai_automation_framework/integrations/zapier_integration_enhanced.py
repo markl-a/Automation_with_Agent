@@ -32,9 +32,13 @@ class ZapierEnhanced:
 
         self.platform_base_url = "https://api.zapier.com/v1"
 
-        self.headers = {}
+        # Use session for connection pooling
+        self.session = requests.Session()
         if self.api_key:
-            self.headers['Authorization'] = f'Bearer {self.api_key}'
+            self.session.headers['Authorization'] = f'Bearer {self.api_key}'
+
+        # Keep headers for backward compatibility
+        self.headers = dict(self.session.headers)
 
     # ========== Webhook 相關 ==========
 
@@ -64,7 +68,7 @@ class ZapierEnhanced:
             }
 
         try:
-            response = requests.post(
+            response = self.session.post(
                 url,
                 json=data,
                 headers={'Content-Type': 'application/json'},
