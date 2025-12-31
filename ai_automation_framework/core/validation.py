@@ -1052,6 +1052,59 @@ async def validate_async(value: Any, validator: ValidatorBase, field_name: str =
     return await validator.validate_async(value, field_name)
 
 
+def validate_params(*param_validators: Tuple[str, ValidatorBase]):
+    """
+    Decorator to validate function parameters.
+
+    Usage:
+        @validate_params(
+            ('name', Required() & Length(min=1, max=100)),
+            ('email', Email()),
+            ('age', Range(min=0, max=150))
+        )
+        def create_user(name: str, email: str, age: int):
+            ...
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Get function signature
+            sig = inspect.signature(func)
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+
+            # Validate each parameter
+            for param_name, validator in param_validators:
+                if param_name in bound.arguments:
+                    value = bound.arguments[param_name]
+                    # validate() raises ValidationError on failure, returns value on success
+                    bound.arguments[param_name] = validator.validate(value, param_name)
+
+            return func(**bound.arguments)
+        return wrapper
+    return decorator
+
+
+def validate_return(validator: ValidatorBase):
+    """
+    Decorator to validate function return value.
+
+    Usage:
+        @validate_return(TypeValidator(dict))
+        def get_user(user_id: int) -> dict:
+            ...
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            # validate() raises ValidationError on failure, returns value on success
+            validated_result = validator.validate(result, "return_value")
+            return validated_result
+        return wrapper
+    return decorator
+
+
 # Allow chaining validators with & operator
 def _and_operator(self: ValidatorBase, other: ValidatorBase) -> 'And':
     """Allow using & to chain validators."""
@@ -1093,4 +1146,6 @@ __all__ = [
     "validate_args",
     "validate",
     "validate_async",
+    "validate_params",
+    "validate_return",
 ]

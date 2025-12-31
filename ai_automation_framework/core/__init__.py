@@ -125,6 +125,10 @@ from ai_automation_framework.core.tool_registry import (
     get_tool_registry,
     register_tool,
 )
+from ai_automation_framework.core.tool_interface import (
+    ToolInterface,
+    ToolResult,
+)
 from ai_automation_framework.core.security import (
     SecureConfig,
     SecureHTTPClient,
@@ -132,6 +136,11 @@ from ai_automation_framework.core.security import (
     APIKeyValidationError,
     require_api_key,
     sanitize_error_message,
+)
+from ai_automation_framework.core.result import (
+    Result,
+    ResultStatus,
+    PaginatedResult,
 )
 
 __all__ = [
@@ -250,6 +259,9 @@ __all__ = [
     "ToolRegistry",
     "get_tool_registry",
     "register_tool",
+    # Tool Interface
+    "ToolInterface",
+    "ToolResult",
     # Security
     "SecureConfig",
     "SecureHTTPClient",
@@ -257,4 +269,8 @@ __all__ = [
     "APIKeyValidationError",
     "require_api_key",
     "sanitize_error_message",
+    # Result Types
+    "Result",
+    "ResultStatus",
+    "PaginatedResult",
 ]
