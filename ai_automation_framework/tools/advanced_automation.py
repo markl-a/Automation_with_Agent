@@ -118,8 +118,14 @@ class EmailAutomationTool:
                 "message": f"Email sent to {recipient}",
                 "timestamp": datetime.now().isoformat()
             }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except smtplib.SMTPAuthenticationError as e:
+            return {"success": False, "error": f"Authentication failed: {str(e)}", "error_type": "auth_error"}
+        except smtplib.SMTPServerDisconnected as e:
+            return {"success": False, "error": f"Server disconnected: {str(e)}", "error_type": "connection_error"}
+        except smtplib.SMTPException as e:
+            return {"success": False, "error": f"SMTP error: {str(e)}", "error_type": "smtp_error"}
+        except (ConnectionError, TimeoutError, OSError) as e:
+            return {"success": False, "error": f"Network error: {str(e)}", "error_type": "network_error"}
 
     def read_emails(
         self,
@@ -180,6 +186,7 @@ class EmailAutomationTool:
                     "error": "No password provided. Install 'keyring' package or use password_env_var parameter."
                 }
 
+        mail = None
         try:
             mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
             mail.login(username, actual_password)
@@ -205,9 +212,6 @@ class EmailAutomationTool:
                     "body": self._get_email_body(email_message)
                 })
 
-            mail.close()
-            mail.logout()
-
             return {
                 "success": True,
                 "count": len(emails),
@@ -215,6 +219,13 @@ class EmailAutomationTool:
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
+        finally:
+            if mail:
+                try:
+                    mail.close()
+                    mail.logout()
+                except Exception:
+                    pass  # Ignore cleanup errors
 
     @staticmethod
     def _get_email_body(email_message: email.message.Message) -> str:
@@ -369,23 +380,26 @@ class DatabaseAutomationTool:
                 self.connect()
 
             cursor = self.conn.cursor()
-            cursor.execute(query, params or ())
+            try:
+                cursor.execute(query, params or ())
 
-            if query.strip().upper().startswith('SELECT'):
-                rows = cursor.fetchall()
-                results = [dict(row) for row in rows]
-                return {
-                    "success": True,
-                    "rows": len(results),
-                    "data": results
-                }
-            else:
-                self.conn.commit()
-                return {
-                    "success": True,
-                    "affected_rows": cursor.rowcount,
-                    "message": "Query executed successfully"
-                }
+                if query.strip().upper().startswith('SELECT'):
+                    rows = cursor.fetchall()
+                    results = [dict(row) for row in rows]
+                    return {
+                        "success": True,
+                        "rows": len(results),
+                        "data": results
+                    }
+                else:
+                    self.conn.commit()
+                    return {
+                        "success": True,
+                        "affected_rows": cursor.rowcount,
+                        "message": "Query executed successfully"
+                    }
+            finally:
+                cursor.close()
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -554,36 +568,39 @@ class DatabaseAutomationTool:
             total_inserted = 0
             cursor = self.conn.cursor()
 
-            # Process in batches
-            for batch_start in range(0, len(records), batch_size):
-                batch_end = min(batch_start + batch_size, len(records))
-                batch = records[batch_start:batch_end]
+            try:
+                # Process in batches
+                for batch_start in range(0, len(records), batch_size):
+                    batch_end = min(batch_start + batch_size, len(records))
+                    batch = records[batch_start:batch_end]
 
-                # Begin transaction for this batch
-                cursor.execute("BEGIN TRANSACTION")
+                    # Begin transaction for this batch
+                    cursor.execute("BEGIN TRANSACTION")
 
-                try:
-                    # Execute batch insert
-                    for record in batch:
-                        values = tuple(record[col] for col in columns)
-                        cursor.execute(query, values)
+                    try:
+                        # Execute batch insert
+                        for record in batch:
+                            values = tuple(record[col] for col in columns)
+                            cursor.execute(query, values)
 
-                    # Commit transaction
-                    self.conn.commit()
-                    total_inserted += len(batch)
+                        # Commit transaction
+                        self.conn.commit()
+                        total_inserted += len(batch)
 
-                except Exception as e:
-                    # Rollback on error
-                    self.conn.rollback()
-                    raise Exception(f"Batch insert failed at record {batch_start}: {str(e)}")
+                    except Exception as e:
+                        # Rollback on error
+                        self.conn.rollback()
+                        raise Exception(f"Batch insert failed at record {batch_start}: {str(e)}")
 
-            return {
-                "success": True,
-                "message": f"Successfully inserted {total_inserted} records",
-                "total_inserted": total_inserted,
-                "batches": (len(records) + batch_size - 1) // batch_size,
-                "batch_size": batch_size
-            }
+                return {
+                    "success": True,
+                    "message": f"Successfully inserted {total_inserted} records",
+                    "total_inserted": total_inserted,
+                    "batches": (len(records) + batch_size - 1) // batch_size,
+                    "batch_size": batch_size
+                }
+            finally:
+                cursor.close()
 
         except Exception as e:
             return {"success": False, "error": str(e)}

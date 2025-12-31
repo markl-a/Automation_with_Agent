@@ -124,6 +124,14 @@ from ai_automation_framework.core.tool_registry import (
     get_tool_registry,
     register_tool,
 )
+from ai_automation_framework.core.security import (
+    SecureConfig,
+    SecureHTTPClient,
+    SecureConfigError,
+    APIKeyValidationError,
+    require_api_key,
+    sanitize_error_message,
+)
 
 __all__ = [
     "Config",
@@ -239,4 +247,11 @@ __all__ = [
     "ToolRegistry",
     "get_tool_registry",
     "register_tool",
+    # Security
+    "SecureConfig",
+    "SecureHTTPClient",
+    "SecureConfigError",
+    "APIKeyValidationError",
+    "require_api_key",
+    "sanitize_error_message",
 ]

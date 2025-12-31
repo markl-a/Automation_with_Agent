@@ -61,8 +61,14 @@ class ZapierIntegration:
                 "response": response.text,
                 "data_sent": data
             }
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except requests.Timeout as e:
+            return {"success": False, "error": f"Request timeout: {str(e)}", "error_type": "timeout"}
+        except requests.ConnectionError as e:
+            return {"success": False, "error": f"Connection error: {str(e)}", "error_type": "connection_error"}
+        except requests.HTTPError as e:
+            return {"success": False, "error": f"HTTP error: {str(e)}", "error_type": "http_error"}
+        except requests.RequestException as e:
+            return {"success": False, "error": f"Request failed: {str(e)}", "error_type": "request_error"}
 
     def send_email_via_zap(
         self,
@@ -112,8 +118,9 @@ class ZapierIntegration:
 
     def close(self) -> None:
         """Close the HTTP session and cleanup resources."""
-        if hasattr(self, 'session'):
+        if hasattr(self, 'session') and self.session:
             self.session.close()
+            self.session = None
 
     def __enter__(self):
         """Context manager entry."""
@@ -123,6 +130,10 @@ class ZapierIntegration:
         """Context manager exit."""
         self.close()
         return False
+
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        self.close()
 
 
 # Example Zapier workflows you can create:
