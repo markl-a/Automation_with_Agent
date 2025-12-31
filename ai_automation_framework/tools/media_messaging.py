@@ -362,7 +362,7 @@ class SlackTool:
         except Exception as e:
             return f"Invalid URL: {str(e)}"
 
-    def __init__(self, webhook_url: str = None, token: str = None):
+    def __init__(self, webhook_url: Optional[str] = None, token: Optional[str] = None):
         """
         Initialize Slack tool.
 
@@ -382,7 +382,7 @@ class SlackTool:
     def send_message(
         self,
         message: str,
-        channel: str = None,
+        channel: Optional[str] = None,
         username: str = "Bot"
     ) -> Dict[str, Any]:
         """
@@ -440,7 +440,7 @@ class SlackTool:
         self,
         file_path: str,
         channel: str,
-        title: str = None
+        title: Optional[str] = None
     ) -> Dict[str, Any]:
         """Upload file to Slack channel."""
         try:

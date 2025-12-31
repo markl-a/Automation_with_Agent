@@ -7,8 +7,12 @@ Video Processing Tools
 
 import os
 import subprocess
+import logging
 from typing import Optional, List, Tuple, Dict, Any
 from pathlib import Path
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 try:
     import cv2
@@ -29,9 +33,9 @@ class VideoProcessor:
     def __init__(self):
         """初始化視頻處理器"""
         if not HAS_OPENCV:
-            print("警告: OpenCV 未安裝，某些功能可能不可用")
+            logger.warning("OpenCV 未安裝，某些功能可能不可用")
         if not HAS_MOVIEPY:
-            print("警告: MoviePy 未安裝，某些功能可能不可用")
+            logger.warning("MoviePy 未安裝，某些功能可能不可用")
 
     def extract_frames(
         self,
@@ -266,9 +270,9 @@ class VideoProcessor:
             subprocess.run(cmd, check=True, capture_output=True, timeout=300)
             return output_path
         except subprocess.CalledProcessError as e:
-            raise Exception(f"視頻轉換失敗: {e.stderr.decode()}")
+            raise RuntimeError(f"視頻轉換失敗: {e.stderr.decode()}")
         except subprocess.TimeoutExpired:
-            raise Exception(f"視頻轉換超時 (300秒)")
+            raise TimeoutError("視頻轉換超時 (300秒)")
 
     def resize_video(
         self,

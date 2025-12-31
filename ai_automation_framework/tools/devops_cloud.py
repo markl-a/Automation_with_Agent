@@ -46,7 +46,7 @@ class GitAutomationTool:
                 "error": f"Git command timed out after 30 seconds: {' '.join(args)}"
             }
 
-    def clone(self, url: str, destination: str = None) -> Dict[str, Any]:
+    def clone(self, url: str, destination: Optional[str] = None) -> Dict[str, Any]:
         """Clone a repository."""
         args = ["clone", url]
         if destination:
@@ -89,7 +89,7 @@ class GitAutomationTool:
         """Get commit history."""
         return self._run_git_command(["log", f"-{max_count}", "--oneline"])
 
-    def diff(self, file_path: str = None) -> Dict[str, Any]:
+    def diff(self, file_path: Optional[str] = None) -> Dict[str, Any]:
         """Show changes in working directory."""
         args = ["diff"]
         if file_path:
@@ -158,7 +158,7 @@ class CloudStorageTool:
         self,
         file_path: str,
         bucket: str,
-        object_name: str = None
+        object_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Upload file to AWS S3.
@@ -284,7 +284,7 @@ class CloudStorageTool:
         self,
         file_path: str,
         bucket: str,
-        object_name: str = None
+        object_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """Upload file to Google Cloud Storage."""
         # Validate credentials first

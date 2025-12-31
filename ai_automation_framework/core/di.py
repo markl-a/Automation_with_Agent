@@ -492,13 +492,22 @@ class Container:
 
                 # Handle string annotations (forward references)
                 if isinstance(param_type, str):
-                    # Try to resolve the string to a type
+                    # Try to resolve the string to a type safely (without eval)
                     try:
                         # Get the class's module namespace
                         module = inspect.getmodule(cls)
                         namespace = vars(module) if module else {}
-                        param_type = eval(param_type, namespace)
-                    except (NameError, SyntaxError, AttributeError):
+                        # Safely lookup the type by name from the namespace
+                        # This avoids using eval() which is a security risk
+                        if param_type in namespace:
+                            param_type = namespace[param_type]
+                        elif hasattr(__builtins__, param_type) if isinstance(__builtins__, dict) else hasattr(__builtins__, param_type):
+                            # Check if it's a builtin type
+                            param_type = getattr(__builtins__, param_type) if isinstance(__builtins__, dict) else __builtins__.__dict__.get(param_type)
+                        else:
+                            # Can't resolve forward reference safely, skip
+                            continue
+                    except (NameError, AttributeError, TypeError):
                         # Can't resolve forward reference, skip this parameter
                         continue
 

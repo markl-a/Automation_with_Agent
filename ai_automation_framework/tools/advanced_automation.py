@@ -15,70 +15,15 @@ import threading
 import os
 import logging
 
-
-class RateLimiter:
-    """
-    Rate limiter using token bucket algorithm.
-
-    The token bucket algorithm maintains a bucket with a maximum capacity.
-    Tokens are added at a constant rate (rate per second).
-    Each request consumes one token. If no tokens are available, requests must wait.
-    """
-
-    def __init__(self, rate: float):
-        """
-        Initialize rate limiter.
-
-        Args:
-            rate: Maximum number of requests per second (e.g., 2.0 = 2 requests/sec)
-        """
-        if rate <= 0:
-            raise ValueError("Rate must be positive")
-
-        self.rate = rate  # tokens per second
-        self.capacity = max(1.0, rate)  # maximum tokens
-        self.tokens = self.capacity  # current tokens available
-        self.last_update = time.time()
-        self.lock = threading.Lock()
-
-    def _add_tokens(self):
-        """Add tokens based on elapsed time since last update."""
-        now = time.time()
-        elapsed = now - self.last_update
-
-        # Add tokens based on elapsed time
-        self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
-        self.last_update = now
-
-    def wait_for_token(self):
-        """
-        Wait until a token is available and consume it.
-
-        This method blocks until rate limit allows the request.
-        """
-        with self.lock:
-            while True:
-                self._add_tokens()
-
-                if self.tokens >= 1.0:
-                    # Consume one token
-                    self.tokens -= 1.0
-                    return
-
-                # Calculate wait time
-                tokens_needed = 1.0 - self.tokens
-                wait_time = tokens_needed / self.rate
-
-                # Release lock while sleeping to allow other threads
-                # to check if tokens are available
-                time.sleep(min(wait_time, 0.1))
+# Import RateLimiter from core.utils to avoid code duplication
+from ai_automation_framework.core.utils import RateLimiter
 
 
 class EmailAutomationTool:
     """Tool for email automation (SMTP/IMAP)."""
 
-    def __init__(self, smtp_server: str = None, smtp_port: int = 587,
-                 imap_server: str = None, imap_port: int = 993):
+    def __init__(self, smtp_server: Optional[str] = None, smtp_port: int = 587,
+                 imap_server: Optional[str] = None, imap_port: int = 993):
         """
         Initialize email automation tool.
 
@@ -97,11 +42,11 @@ class EmailAutomationTool:
         self,
         sender: str,
         password: Optional[str] = None,
-        recipient: str = None,
-        subject: str = None,
-        body: str = None,
+        recipient: Optional[str] = None,
+        subject: Optional[str] = None,
+        body: Optional[str] = None,
         html: bool = False,
-        password_env_var: str = None
+        password_env_var: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Send an email via SMTP.
@@ -387,7 +332,7 @@ class DatabaseAutomationTool:
 
         return True
 
-    def execute_query(self, query: str, params: tuple = None, skip_validation: bool = False) -> Dict[str, Any]:
+    def execute_query(self, query: str, params: Optional[tuple] = None, skip_validation: bool = False) -> Dict[str, Any]:
         """
         Execute SQL query with safety validation.
 
@@ -447,9 +392,9 @@ class DatabaseAutomationTool:
     def generate_select_query(
         self,
         table: str,
-        columns: List[str] = None,
-        where: Dict[str, Any] = None,
-        limit: int = None
+        columns: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+        limit: Optional[int] = None
     ) -> str:
         """
         Generate SELECT query with SQL injection protection.
@@ -704,7 +649,7 @@ class WebScraperTool:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def extract_links(self, html_content: str, base_url: str = None) -> Dict[str, Any]:
+    def extract_links(self, html_content: str, base_url: Optional[str] = None) -> Dict[str, Any]:
         """
         Extract all links from HTML.
 
@@ -756,7 +701,7 @@ class WebScraperTool:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def extract_text(self, html_content: str, tag: str = None) -> Dict[str, Any]:
+    def extract_text(self, html_content: str, tag: Optional[str] = None) -> Dict[str, Any]:
         """
         Extract text from HTML.
 

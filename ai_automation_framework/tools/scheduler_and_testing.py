@@ -23,7 +23,7 @@ class TaskScheduler:
         task_func: Callable,
         schedule_type: str,
         interval: int = 1,
-        at_time: str = None,
+        at_time: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """

@@ -19,7 +19,7 @@ class ConsoleLogger:
 
 class IDatabase(Protocol):
     """Database interface."""
-    def query(self, sql: str) -> str:
+    def query(self, sql: str, params: tuple = ()) -> str:
         ...
 
 
@@ -29,8 +29,9 @@ class MySQLDatabase:
         self.logger = logger
         self.logger.log("MySQLDatabase initialized")
 
-    def query(self, sql: str) -> str:
-        self.logger.log(f"Executing query: {sql}")
+    def query(self, sql: str, params: tuple = ()) -> str:
+        """Execute a parameterized query safely."""
+        self.logger.log(f"Executing query: {sql} with params: {params}")
         return "Result"
 
 
@@ -42,7 +43,8 @@ class UserService:
         self.logger.log("UserService initialized")
 
     def get_user(self, user_id: int) -> str:
-        return self.database.query(f"SELECT * FROM users WHERE id = {user_id}")
+        # Use parameterized query to prevent SQL injection
+        return self.database.query("SELECT * FROM users WHERE id = ?", (user_id,))
 
 
 def test_basic_registration_and_resolution():

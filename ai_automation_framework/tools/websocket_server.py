@@ -8,8 +8,12 @@ WebSocket Real-time Communication Tools
 import asyncio
 import json
 import inspect
+import logging
 from typing import Dict, Set, Callable, Any, Optional
 from datetime import datetime
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 try:
     import websockets
@@ -69,7 +73,7 @@ class WebSocketServer:
         """
         # 添加客戶端
         self.clients.add(websocket)
-        print(f"✅ 新客戶端連接: {websocket.remote_address}")
+        logger.info(f"新客戶端連接: {websocket.remote_address}")
 
         try:
             async for message in websocket:
@@ -83,9 +87,9 @@ class WebSocketServer:
 
                 await self.process_message(websocket, message)
         except websockets.exceptions.ConnectionClosed:
-            print(f"❌ 客戶端斷開連接: {websocket.remote_address}")
+            logger.info(f"客戶端斷開連接: {websocket.remote_address}")
         except asyncio.TimeoutError:
-            print(f"⏱️ 客戶端連接超時: {websocket.remote_address}")
+            logger.warning(f"客戶端連接超時: {websocket.remote_address}")
         finally:
             # 移除客戶端
             self.clients.remove(websocket)
@@ -287,7 +291,7 @@ class WebSocketClient:
             payload: 消息負載
         """
         if not self.websocket:
-            raise Exception("未連接到服務器")
+            raise ConnectionError("未連接到服務器")
 
         message = {
             'type': message_type,
@@ -308,13 +312,13 @@ class WebSocketClient:
     async def receive(self):
         """接收並處理消息"""
         if not self.websocket:
-            raise Exception("未連接到服務器")
+            raise ConnectionError("未連接到服務器")
 
         async for message in self.websocket:
             try:
                 # Validate message size
                 if len(message) > self.MAX_MESSAGE_SIZE:
-                    print(f"接收到的消息過大，已忽略。最大大小: {self.MAX_MESSAGE_SIZE} 字節")
+                    logger.warning(f"接收到的消息過大，已忽略。最大大小: {self.MAX_MESSAGE_SIZE} 字節")
                     continue
 
                 data = json.loads(message)
