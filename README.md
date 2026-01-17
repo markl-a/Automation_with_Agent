@@ -47,14 +47,15 @@ A comprehensive, production-ready framework for LLM and AI automation - from bas
 
 ### 🛠️ Core Components
 
-- **LLM Clients**: Unified interface for OpenAI, Anthropic Claude, Ollama (local), and more
-- **RAG System**: Complete implementation with embeddings and vector stores
-- **Agent Framework**: Base classes for building intelligent agents
+- **LLM Clients**: Unified interface for OpenAI, Anthropic Claude, Google Gemini, Ollama (local), and more
+- **RAG System**: Complete implementation with embeddings, vector stores, HyDE, and reranking
+- **Agent Framework**: Base classes with persistent memory storage (SQLite, Redis)
 - **Workflow Engine**: Chain and pipeline processing
 - **Tools Collection**: Pre-built tools for file ops, calculations, web search, etc.
 - **Document Loaders**: Support for PDF, Word, Markdown, and text files
 - **Usage Tracking**: Monitor token usage and costs across all LLM calls
 - **Response Caching**: Intelligent caching to reduce costs and improve speed
+- **Token Budget**: Budget management with daily/weekly/monthly limits and alerts
 - **Production Ready**: Logging, configuration management, error handling
 
 ### 🌟 Highlights
@@ -385,10 +386,12 @@ This framework is built using modern AI technologies and best practices from:
 - [x] Complete API documentation
 - [x] Enterprise-grade infrastructure (DI, Circuit Breaker, Events, Plugins)
 - [x] Workflow automation integrations (Temporal, Prefect, Celery)
+- [x] Integration with more LLM providers (Google Gemini)
+- [x] Advanced RAG techniques (HyDE, MultiQuery, Reranking)
+- [x] Agent memory persistence (SQLite, Redis, JSON)
+- [x] Token budget management system
 - [ ] Web UI with Streamlit
-- [ ] Integration with more LLM providers (Google Gemini, Cohere)
-- [ ] Advanced RAG techniques (HyDE, MultiQuery, etc.)
-- [ ] Agent memory persistence
+- [ ] Integration with more LLM providers (Cohere, DeepSeek)
 - [ ] Production deployment guides
 
 ## 📝 Changelog

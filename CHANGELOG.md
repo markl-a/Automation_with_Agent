@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Google Gemini LLM Client**: Full support for Gemini 1.5 Pro, Flash, and other models
+  - Chat, async chat, and streaming support
+  - Automatic retry with exponential backoff
+  - Safety settings and generation config customization
+  - Token counting support
+- **Advanced RAG System**: Enhanced retrieval techniques
+  - HyDE (Hypothetical Document Embeddings) retrieval
+  - MultiQuery retrieval for better query coverage
+  - CrossEncoderReranker and CohereReranker for improved precision
+  - Reciprocal Rank Fusion for result combination
+  - Convenience classes: HyDERetriever, MultiQueryRetriever, RerankedRetriever
+- **Agent Memory Persistence**: Multiple storage backends
+  - SQLiteMemoryStore for local file-based persistence
+  - RedisMemoryStore for distributed in-memory storage
+  - JSONFileMemoryStore for simple file-based storage
+  - PersistentAgent with automatic save/load
+  - ConversationManager for multi-conversation handling
+  - Support for conversation switching, export/import, and metadata
+- **Token Budget Management**: Cost control system
+  - Hourly, daily, weekly, and monthly budget limits
+  - Per-model budget allocation
+  - Real-time usage tracking and alerts
+  - Cost calculation for OpenAI, Anthropic, and Google models
+  - BudgetExceededError for enforcing limits
+  - Usage statistics and cost summary reports
 - Project improvement analysis tools and reports
 - Comprehensive documentation for project structure
 

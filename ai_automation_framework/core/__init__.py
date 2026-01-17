@@ -142,6 +142,19 @@ from ai_automation_framework.core.result import (
     ResultStatus,
     PaginatedResult,
 )
+from ai_automation_framework.core.token_budget import (
+    TokenBudgetManager,
+    BudgetConfig,
+    BudgetPeriod,
+    BudgetExceededError,
+    TokenUsage,
+    UsageStats,
+    BaseUsageStore,
+    SQLiteUsageStore,
+    InMemoryUsageStore,
+    get_budget_manager,
+    calculate_cost,
+)
 
 __all__ = [
     "Config",
@@ -273,4 +286,16 @@ __all__ = [
     "Result",
     "ResultStatus",
     "PaginatedResult",
+    # Token Budget Management
+    "TokenBudgetManager",
+    "BudgetConfig",
+    "BudgetPeriod",
+    "BudgetExceededError",
+    "TokenUsage",
+    "UsageStats",
+    "BaseUsageStore",
+    "SQLiteUsageStore",
+    "InMemoryUsageStore",
+    "get_budget_manager",
+    "calculate_cost",
 ]

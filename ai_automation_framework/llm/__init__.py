@@ -4,6 +4,7 @@ from ai_automation_framework.llm.base_client import BaseLLMClient
 from ai_automation_framework.llm.openai_client import OpenAIClient
 from ai_automation_framework.llm.anthropic_client import AnthropicClient
 from ai_automation_framework.llm.ollama_client import OllamaClient
+from ai_automation_framework.llm.gemini_client import GeminiClient
 from ai_automation_framework.llm.streaming import (
     StreamProcessor,
     ParallelStreamProcessor,
@@ -23,6 +24,7 @@ def _register_default_providers():
     LLMClientFactory.register_provider("openai", OpenAIClient)
     LLMClientFactory.register_provider("anthropic", AnthropicClient)
     LLMClientFactory.register_provider("ollama", OllamaClient)
+    LLMClientFactory.register_provider("gemini", GeminiClient)
 
 
 # Initialize providers on module import
@@ -36,6 +38,7 @@ __all__ = [
     "OpenAIClient",
     "AnthropicClient",
     "OllamaClient",
+    "GeminiClient",
     # Streaming
     "StreamProcessor",
     "ParallelStreamProcessor",
