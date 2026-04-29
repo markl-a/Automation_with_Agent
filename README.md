@@ -6,7 +6,32 @@ A comprehensive, production-ready framework for LLM and AI automation - from bas
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-0.5.0-green.svg)](https://github.com/markl-a/Automation_with_AI/releases)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Powered by phantom-mesh](https://img.shields.io/badge/powered%20by-phantom--mesh-purple)](https://github.com/markl-a/phantom-mesh)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+---
+
+## 🔗 phantom-mesh ecosystem
+
+This repository is the **applied automation + AIOps + MLOps layer** of the
+[phantom-mesh](https://github.com/markl-a/phantom-mesh) ecosystem — a
+self-hostable multi-agent AI runtime that runs across Mac, Linux, Windows,
+Android, and iOS.
+
+**How it fits in:**
+
+- **phantom-mesh** provides the cross-platform agent runtime (Rust, single binary).
+- **Automation_with_AI** (this repo) provides the **17+ production automation tools**
+  that phantom agents call into: web scraping, email, database, scheduling, API
+  testing, cloud integration, DevOps pipelines.
+- The **AIOps / MLOps** angle here covers what was previously split into a
+  separate `AIOps` repo (deployment, monitoring, multi-provider routing,
+  cost tracking) — now consolidated.
+
+In other words: phantom-mesh is the **engine**; this repo is the **toolbox**
+that engine reaches into when an automation task needs to do real work.
+
+---
 
 ## ✨ Features
 
