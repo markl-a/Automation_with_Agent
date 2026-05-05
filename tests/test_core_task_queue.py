@@ -397,6 +397,10 @@ class TestTaskTimeoutHandling:
     def test_wait_for_task_no_timeout(self):
         """Test wait_for_task without timeout."""
         queue = TaskQueue()
+        # Without queue.start() the worker pool is never created and
+        # wait_for_task(timeout=None) polls forever. start() makes the
+        # test verify the actual contract: "no timeout = wait until done".
+        queue.start()
 
         def quick_task():
             return "done"
