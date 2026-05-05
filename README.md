@@ -115,19 +115,21 @@ that engine reaches into when an automation task needs to do real work.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/Automation_with_AI.git
-cd Automation_with_AI
+git clone https://github.com/markl-a/Automation_with_Agent.git
+cd Automation_with_Agent
 
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install runtime dependencies (~600 MB — includes chromadb, faiss, opencv, ffmpeg-python)
 pip install -r requirements.txt
 
-# Or install in development mode
+# (optional) install the framework as an editable package
 pip install -e .
 ```
+
+> **Heads-up on install size**: `requirements.txt` covers every feature (RAG, vector stores, OCR, video, cloud SDKs, workflow engines). On a fresh box this pulls ~600 MB. If you only need core LLM + tools, install selectively from the `[project.optional-dependencies]` groups in `pyproject.toml` — `pip install -e ".[automation]"` etc.
 
 ### Configuration
 
@@ -139,6 +141,25 @@ cp .env.example .env
 # OPENAI_API_KEY=your_key_here
 # ANTHROPIC_API_KEY=your_key_here
 ```
+
+### Running the test suite
+
+```bash
+# After installing dependencies above:
+pip install -e ".[dev]"          # adds pytest, pytest-asyncio, pytest-cov, ruff, mypy
+
+# Run the full suite
+pytest tests/ -v
+
+# Or run only the fast unit tests (skip RAG, integration, browser, media)
+pytest tests/ -v \
+    --ignore=tests/test_rag.py \
+    --ignore=tests/test_integrations.py \
+    --ignore=tests/test_tools_devops.py \
+    --ignore=tests/test_tools_media.py
+```
+
+The full suite contains ~700 tests across 20 files. Some tests require optional system tools (Tesseract for OCR, ffmpeg for video, a real browser for Selenium/Playwright) and will be skipped if those aren't available — that's expected on a fresh box without those installed.
 
 ## 🎓 Quick Start
 
