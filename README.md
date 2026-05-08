@@ -1,27 +1,27 @@
-# 🤖 AI Automation Framework
+# AI Automation Framework
 
-A comprehensive, production-ready framework for LLM and AI automation - from basics to advanced. Built with modern best practices and designed for both learning and real-world applications.
+A practical toolbox for LLM and AI automation, from learning examples to serviceable workflow prototypes. It is part of the Phantom Mesh ecosystem as the applied automation and income-service layer.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.5.0-green.svg)](https://github.com/markl-a/Automation_with_AI/releases)
+[![Version](https://img.shields.io/badge/version-0.5.0-green.svg)](https://github.com/markl-a/Automation_with_Agent/releases)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Powered by phantom-mesh](https://img.shields.io/badge/powered%20by-phantom--mesh-purple)](https://github.com/markl-a/phantom-mesh)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 ---
 
-## 🔗 phantom-mesh ecosystem
+## phantom-mesh ecosystem
 
 This repository is the **applied automation + AIOps + MLOps layer** of the
 [phantom-mesh](https://github.com/markl-a/phantom-mesh) ecosystem — a
-self-hostable multi-agent AI runtime that runs across Mac, Linux, Windows,
-Android, and iOS.
+self-hostable multi-agent AI runtime being developed across desktop, mobile,
+and cloud surfaces.
 
 **How it fits in:**
 
 - **phantom-mesh** provides the cross-platform agent runtime (Rust, single binary).
-- **Automation_with_AI** (this repo) provides the **17+ production automation tools**
+- **Automation_with_Agent** (this repo) provides **17+ automation examples and tools**
   that phantom agents call into: web scraping, email, database, scheduling, API
   testing, cloud integration, DevOps pipelines.
 - The **AIOps / MLOps** angle here covers what was previously split into a
@@ -30,6 +30,16 @@ Android, and iOS.
 
 In other words: phantom-mesh is the **engine**; this repo is the **toolbox**
 that engine reaches into when an automation task needs to do real work.
+
+---
+
+## Current Verification
+
+Latest `goal_plan` check:
+
+- `python -m pytest tests -q -x`: blocked by environment drift; this repo needs a pytest 8+ environment.
+
+Current public claim: automation toolbox and service-prototype layer. Do not treat every optional integration as green until the scoped virtual environment and smoke path are rebuilt.
 
 ---
 
@@ -57,7 +67,7 @@ that engine reaches into when an automation task needs to do real work.
 - Agent collaboration patterns
 
 **Level 4 - Advanced Automation**
-- 17+ production-ready automation tools
+- 17+ automation examples and tools
 - Email, Database, Web Scraping
 - Task Scheduling, API Testing
 - Cloud Integration, DevOps
@@ -81,7 +91,7 @@ that engine reaches into when an automation task needs to do real work.
 - **Usage Tracking**: Monitor token usage and costs across all LLM calls
 - **Response Caching**: Intelligent caching to reduce costs and improve speed
 - **Token Budget**: Budget management with daily/weekly/monthly limits and alerts
-- **Production Ready**: Logging, configuration management, error handling
+- **Production-oriented patterns**: Logging, configuration management, error handling
 
 ### 🌟 Highlights
 
@@ -343,7 +353,7 @@ ai_automation_framework/
 1. **Modularity**: Each component is independent and composable
 2. **Extensibility**: Easy to add new LLM providers, tools, and agents
 3. **Type Safety**: Full type hints for better IDE support
-4. **Production Ready**: Proper logging, error handling, and configuration
+4. **Production-oriented patterns**: Proper logging, error handling, and configuration
 5. **Best Practices**: Following 2025 AI framework patterns
 
 ## 🎯 Use Cases
